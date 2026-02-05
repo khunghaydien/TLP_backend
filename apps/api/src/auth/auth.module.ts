@@ -2,8 +2,8 @@ import { Module } from '@nestjs/common';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
-import { UsersModule } from 'defaultLibraryPrefix/users';
-import { JwtStrategy } from 'defaultLibraryPrefix/common';
+import { UsersModule } from '@app/users';
+import { JwtStrategy } from '@app/common';
 
 @Module({
   imports: [

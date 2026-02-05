@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ApiController } from './api.controller';
 import { ApiService } from './api.service';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
-import { UserEntity } from 'defaultLibraryPrefix/database';
+import { VoiceRoomsModule } from './voice-rooms/voice-rooms.module';
+import { UserEntity, VoiceRoomsEntity } from '@app/database';
 import 'dotenv/config';
 
 @Module({
@@ -16,14 +16,14 @@ import 'dotenv/config';
       username: process.env.DB_USERNAME || 'postgres',
       password: process.env.DB_PASSWORD || 'postgres',
       database: process.env.DB_DATABASE || 'template_db',
-      entities: [UserEntity],
+      entities: [UserEntity, VoiceRoomsEntity],
       synchronize: false,
       logging: process.env.NODE_ENV !== 'production',
     }),
     UsersModule,
     AuthModule,
+    VoiceRoomsModule,
   ],
-  controllers: [ApiController],
   providers: [ApiService],
 })
-export class ApiModule {}
+export class ApiModule { }

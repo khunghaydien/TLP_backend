@@ -18,22 +18,28 @@
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false,
     "paths": {
-      "defaultLibraryPrefix/common": [
+      "@app/voice-rooms": [
+        "libs/voice-rooms/src"
+      ],
+      "@app/voice-rooms/*": [
+        "libs/voice-rooms/src/*"
+      ],
+      "@app/common": [
         "libs/common/src"
       ],
-      "defaultLibraryPrefix/common/*": [
+      "@app/common/*": [
         "libs/common/src/*"
       ],
-      "defaultLibraryPrefix/database": [
+      "@app/database": [
         "libs/database/src"
       ],
-      "defaultLibraryPrefix/database/*": [
+      "@app/database/*": [
         "libs/database/src/*"
       ],
-      "defaultLibraryPrefix/users": [
+      "@app/users": [
         "libs/users/src"
       ],
-      "defaultLibraryPrefix/users/*": [
+      "@app/users/*": [
         "libs/users/src/*"
       ]
     }

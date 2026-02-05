@@ -4,8 +4,8 @@ import {
   CreateUserDto,
   SignInDto,
   SignInResult,
-} from 'defaultLibraryPrefix/users';
-import { Public } from 'defaultLibraryPrefix/common';
+} from '@app/users';
+import { Public } from '@app/common';
 
 @Controller('auth')
 export class AuthController {

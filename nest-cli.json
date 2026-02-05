@@ -45,6 +45,15 @@
       "compilerOptions": {
         "tsConfigPath": "libs/users/tsconfig.lib.json"
       }
+    },
+    "voice-rooms": {
+      "type": "library",
+      "root": "libs/voice-rooms",
+      "entryFile": "index",
+      "sourceRoot": "libs/voice-rooms/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/voice-rooms/tsconfig.lib.json"
+      }
     }
   }
 }

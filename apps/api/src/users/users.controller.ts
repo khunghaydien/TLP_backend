@@ -8,9 +8,9 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { Request } from 'express';
-import { UsersService } from 'defaultLibraryPrefix/users';
-import { JwtAuthGuard, RequestUser } from 'defaultLibraryPrefix/common';
-import { UserEntity } from 'defaultLibraryPrefix/database';
+import { UsersService } from '@app/users';
+import { JwtAuthGuard, RequestUser } from '@app/common';
+import { UserEntity } from '@app/database';
 
 /** Trả về user không có password */
 function toUserResponse(user: UserEntity) {

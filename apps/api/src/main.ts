@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ApiModule } from './api.module';
-import { GlobalExceptionFilter } from 'defaultLibraryPrefix/common';
+import { GlobalExceptionFilter } from '@app/common';
 import 'dotenv/config';
 
 async function bootstrap() {
