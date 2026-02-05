@@ -1,0 +1,139 @@
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
+import { UserEntity } from 'defaultLibraryPrefix/database';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { SignInDto, SignInResult } from './dto/sign-in.dto';
+
+const SALT_ROUNDS = 10;
+const DEFAULT_ACCESS_EXPIRES = '15m';
+const DEFAULT_REFRESH_EXPIRES = '7d';
+
+@Injectable()
+export class UsersService {
+  constructor(
+    @InjectRepository(UserEntity)
+    private readonly userRepo: Repository<UserEntity>,
+    private readonly jwtService: JwtService,
+  ) {}
+
+  async create(dto: CreateUserDto): Promise<UserEntity> {
+    const existing = await this.userRepo.findOne({ where: { email: dto.email } });
+    if (existing) {
+      throw new ConflictException('Email already registered');
+    }
+    const hashed = await bcrypt.hash(dto.password, SALT_ROUNDS);
+    const user = this.userRepo.create({ email: dto.email, password: hashed });
+    return this.userRepo.save(user);
+  }
+
+  async findAll(): Promise<UserEntity[]> {
+    return this.userRepo.find({ order: { createdAt: 'DESC' } });
+  }
+
+  async findOne(id: string): Promise<UserEntity> {
+    const user = await this.userRepo.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return user;
+  }
+
+  async findByEmail(email: string): Promise<UserEntity | null> {
+    return this.userRepo.findOne({ where: { email } });
+  }
+
+  async update(id: string, dto: UpdateUserDto): Promise<UserEntity> {
+    const user = await this.findOne(id);
+    if (dto.email !== undefined) {
+      const existing = await this.userRepo.findOne({ where: { email: dto.email } });
+      if (existing && existing.id !== id) {
+        throw new ConflictException('Email already in use');
+      }
+      user.email = dto.email;
+    }
+    if (dto.password !== undefined && dto.password !== '') {
+      user.password = await bcrypt.hash(dto.password, SALT_ROUNDS);
+    }
+    return this.userRepo.save(user);
+  }
+
+  async remove(id: string): Promise<void> {
+    const user = await this.findOne(id);
+    await this.userRepo.softRemove(user);
+  }
+
+  createAccessToken(user: UserEntity): string {
+    const secret = process.env.JWT_SECRET || 'default-access-secret';
+    const expiresIn = process.env.JWT_ACCESS_EXPIRES || DEFAULT_ACCESS_EXPIRES;
+    return this.jwtService.sign(
+      { sub: user.id, email: user.email },
+      { secret, expiresIn },
+    );
+  }
+
+  createRefreshToken(user: UserEntity): string {
+    const secret = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET || 'default-refresh-secret';
+    const expiresIn = process.env.JWT_REFRESH_EXPIRES || DEFAULT_REFRESH_EXPIRES;
+    return this.jwtService.sign(
+      { sub: user.id, email: user.email },
+      { secret, expiresIn },
+    );
+  }
+
+  async signIn(dto: SignInDto): Promise<SignInResult> {
+    const user = await this.findByEmail(dto.email);
+    if (!user) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+    const match = await bcrypt.compare(dto.password, user.password);
+    if (!match) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+    const accessToken = this.createAccessToken(user);
+    const refreshToken = this.createRefreshToken(user);
+    return {
+      user: { id: user.id, email: user.email },
+      accessToken,
+      refreshToken,
+    };
+  }
+
+  /**
+   * Đổi refresh token còn hạn lấy access token + refresh token mới.
+   * Gọi khi access token hết hạn nhưng refresh token vẫn còn hạn.
+   */
+  async refreshTokens(refreshToken: string): Promise<SignInResult> {
+    const refreshSecret =
+      process.env.JWT_REFRESH_SECRET ||
+      'default-refresh-secret';
+    let payload: { sub?: string; email?: string };
+    try {
+      payload = this.jwtService.verify(refreshToken, { secret: refreshSecret });
+    } catch {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+    if (!payload.sub) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+    const user = await this.userRepo.findOne({ where: { id: payload.sub } });
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+    const accessToken = this.createAccessToken(user);
+    const newRefreshToken = this.createRefreshToken(user);
+    return {
+      user: { id: user.id, email: user.email },
+      accessToken,
+      refreshToken: newRefreshToken,
+    };
+  }
+}
