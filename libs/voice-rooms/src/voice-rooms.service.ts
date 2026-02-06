@@ -7,17 +7,16 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AccessToken, RoomServiceClient } from 'livekit-server-sdk';
 import { VoiceRoomsEntity } from '@app/database';
+import { addCursorPagination, addTrgmSearch, parseCursorResult } from '@app/common';
 import { CreateVoiceRoomDto } from './dto/create-voice-room.dto';
-
-export interface CreateVoiceRoomResult {
-  roomId: string;
-}
-
-export interface VoiceTokenResult {
-  token: string;
-}
+import { CreateVoiceRoomResultDto } from './dto/create-voice-room-result.dto';
+import { VoiceTokenResultDto } from './dto/voice-token-result.dto';
+import { ListVoiceRoomsOptionsDto } from './dto/list-voice-rooms-options.dto';
+import { ListVoiceRoomsResultDto } from './dto/list-voice-rooms-result.dto';
 
 const DEFAULT_MAX_PARTICIPANTS = 10;
+const DEFAULT_PAGE_LIMIT = 20;
+const MAX_PAGE_LIMIT = 100;
 @Injectable()
 export class VoiceRoomsService {
   private readonly livekitHost = process.env.LIVEKIT_URL || '';
@@ -31,7 +30,7 @@ export class VoiceRoomsService {
   constructor(
     @InjectRepository(VoiceRoomsEntity)
     private readonly voiceRoomsRepo: Repository<VoiceRoomsEntity>,
-  ) {}
+  ) { }
 
   private getRoomService(): RoomServiceClient {
     if (!this.roomService) {
@@ -44,14 +43,14 @@ export class VoiceRoomsService {
     return this.roomService;
   }
 
-    /**
-     * User tạo room mới: chỉ insert voice_rooms, trả về room_id.
-     * LiveKit room chưa tồn tại cho đến khi có user join.
-     */
+  /**
+   * User tạo room mới: chỉ insert voice_rooms, trả về room_id.
+   * LiveKit room chưa tồn tại cho đến khi có user join.
+   */
   async createRoom(
     input: CreateVoiceRoomDto,
     ownerId: string,
-  ): Promise<CreateVoiceRoomResult> {
+  ): Promise<CreateVoiceRoomResultDto> {
     const room = this.voiceRoomsRepo.create({
       name: input.name,
       description: input.description,
@@ -69,7 +68,7 @@ export class VoiceRoomsService {
    * - Tạo token và trả về.
    * Nếu room chưa có ai → LiveKit room được tạo lúc participant đầu tiên join.
    */
-  async getToken(roomId: string, userId: string): Promise<VoiceTokenResult> {
+  async getToken(roomId: string, userId: string): Promise<VoiceTokenResultDto> {
     const room = await this.voiceRoomsRepo.findOne({ where: { id: roomId } });
     if (!room) {
       throw new NotFoundException('Room not found');
@@ -104,11 +103,54 @@ export class VoiceRoomsService {
     return { token };
   }
 
-  async findOne(roomId: string): Promise<VoiceRoomsEntity> {
+  /**
+   * Lấy danh sách room: filter language, search trgm theo name, cursor pagination (index updated_at, id).
+   * Cần bật extension: CREATE EXTENSION IF NOT EXISTS pg_trgm;
+   */
+  async findAll(
+    options: ListVoiceRoomsOptionsDto = {},
+  ): Promise<ListVoiceRoomsResultDto> {
+    const limit = Math.min(
+      Number(options.limit) || DEFAULT_PAGE_LIMIT,
+      MAX_PAGE_LIMIT,
+    );
+
+    const qb = this.voiceRoomsRepo.createQueryBuilder('r');
+    addTrgmSearch(qb, 'r', 'name', options.search);
+    if (options.language?.trim()) {
+      qb.andWhere('r.language = :language', {
+        language: options.language.trim(),
+      });
+    }
+    addCursorPagination(qb, {
+      alias: 'r',
+      tableName: 'voice_rooms',
+      cursor: options.cursor,
+      limit,
+    });
+
+    const items = await qb.getMany();
+    return parseCursorResult(items, limit);
+  }
+
+  /**
+   * Xóa room: xóa trên LiveKit (đóng room thật) và xóa bản ghi trong DB.
+   * Gọi khi user bấm thoát / end room để dọn room trên LiveKit và không còn hiện trong list.
+   */
+  async deleteRoom(roomId: string): Promise<void> {
     const room = await this.voiceRoomsRepo.findOne({ where: { id: roomId } });
     if (!room) {
       throw new NotFoundException('Room not found');
     }
-    return room;
+
+    const roomService = this.getRoomService();
+    const liveKitRoomName = roomId;
+    try {
+      await roomService.deleteRoom(liveKitRoomName);
+    } catch {
+      // Room chưa tồn tại trên LiveKit (chưa ai từng join) → bỏ qua
+    }
+
+    await this.voiceRoomsRepo.remove(room);
   }
 }

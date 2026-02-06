@@ -30,6 +30,10 @@ npm run migration:create libs/database/src/migrations/MigrationName
 # Chạy tất cả migrations chưa được chạy
 npm run migration:run
 
+# Chạy đúng một migration (theo tên hoặc timestamp)
+npm run migration:run:one -- 1770280000000
+npm run migration:run:one -- EnablePgTrgm1770280000000
+
 # Revert migration cuối cùng
 npm run migration:revert
 
@@ -39,13 +43,14 @@ npm run migration:show
 
 ## Các lệnh Migration
 
-| Lệnh                                | Mô tả                          |
-| ----------------------------------- | ------------------------------ |
-| `npm run migration:generate <path>` | Generate migration từ entities |
-| `npm run migration:create <path>`   | Tạo migration file trống       |
-| `npm run migration:run`             | Chạy tất cả migrations pending |
-| `npm run migration:revert`          | Revert migration cuối cùng     |
-| `npm run migration:show`            | Hiển thị status của migrations |
+| Lệnh                                    | Mô tả                              |
+| --------------------------------------- | ---------------------------------- |
+| `npm run migration:generate <path>`     | Generate migration từ entities     |
+| `npm run migration:create <path>`       | Tạo migration file trống           |
+| `npm run migration:run`                 | Chạy tất cả migrations pending     |
+| `npm run migration:run:one -- <name>`   | Chạy đúng một migration (tên/ts)   |
+| `npm run migration:revert`               | Revert migration cuối cùng         |
+| `npm run migration:show`               | Hiển thị status của migrations     |
 
 ## Lưu ý
 

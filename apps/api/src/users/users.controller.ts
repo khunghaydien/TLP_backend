@@ -3,12 +3,13 @@ import {
   Get,
   Delete,
   Param,
+  Query,
   UseGuards,
   Req,
   ForbiddenException,
 } from '@nestjs/common';
 import { Request } from 'express';
-import { UsersService } from '@app/users';
+import { ListUsersOptionsDto, UsersService } from '@app/users';
 import { JwtAuthGuard, RequestUser } from '@app/common';
 import { UserEntity } from '@app/database';
 
@@ -24,9 +25,16 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  async list() {
-    const users = await this.usersService.findAll();
-    return users.map(toUserResponse);
+  async list(@Query() query: ListUsersOptionsDto) {
+    const { items, nextCursor } = await this.usersService.findAll({
+      search: query.search,
+      cursor: query.cursor,
+      limit: query.limit,
+    });
+    return {
+      items: items.map(toUserResponse),
+      nextCursor,
+    };
   }
 
   /** Thông tin bản thân (user đang đăng nhập) */

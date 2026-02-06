@@ -9,13 +9,18 @@ import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UserEntity } from '@app/database';
+import { addCursorPagination, addTrgmSearch, parseCursorResult } from '@app/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { SignInDto, SignInResult } from './dto/sign-in.dto';
+import { ListUsersOptionsDto } from './dto/list-users-options.dto';
+import { ListUsersResultDto } from './dto/list-users-result.dto';
 
 const SALT_ROUNDS = 10;
 const DEFAULT_ACCESS_EXPIRES = '15m';
 const DEFAULT_REFRESH_EXPIRES = '7d';
+const DEFAULT_PAGE_LIMIT = 20;
+const MAX_PAGE_LIMIT = 100;
 
 @Injectable()
 export class UsersService {
@@ -35,8 +40,26 @@ export class UsersService {
     return this.userRepo.save(user);
   }
 
-  async findAll(): Promise<UserEntity[]> {
-    return this.userRepo.find({ order: { createdAt: 'DESC' } });
+  /**
+   * Danh sách user: search gần đúng theo email (pg_trgm), cursor pagination (index updated_at, id).
+   */
+  async findAll(options: ListUsersOptionsDto = {}): Promise<ListUsersResultDto> {
+    const limit = Math.min(
+      Number(options.limit) || DEFAULT_PAGE_LIMIT,
+      MAX_PAGE_LIMIT,
+    );
+
+    const qb = this.userRepo.createQueryBuilder('u');
+    addTrgmSearch(qb, 'u', 'email', options.search, 'userSearchTerm');
+    addCursorPagination(qb, {
+      alias: 'u',
+      tableName: 'users',
+      cursor: options.cursor,
+      limit,
+    });
+
+    const items = await qb.getMany();
+    return parseCursorResult(items, limit);
   }
 
   async findOne(id: string): Promise<UserEntity> {

@@ -1,11 +1,9 @@
-import { BaseEntity, Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
-import { UserEntity } from "./users.entity";
+import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
+import { BaseEntity } from './base.entity';
+import { UserEntity } from './users.entity';
 
 @Entity('voice_rooms')
 export class VoiceRoomsEntity extends BaseEntity {
-    @PrimaryGeneratedColumn('uuid')
-    id: string;
-
     @Column({ type: 'varchar', unique: true, length: 255, name: 'name' })
     name: string;
 
